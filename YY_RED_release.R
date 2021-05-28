@@ -1,35 +1,38 @@
-## Site CD, Species FALLOW
+## Site YY, Species RED DEER
 
 ## Libraries and functions 
 source("Scripts/SMR_functions.R")
 
 inDir <- "Input/"
-Site <- "CD"
+site <- "YY"
 
-# Geographic data: 1) state space and 2) camera locations
+# Geographic data: state space and camera locations
 dsn <- "Geographic"
-cam.regionS <- readOGR(dsn, "S_CD_GDA94")
+cam.regionS <- readOGR(dsn, "S_YY_GDA94")
 cam.region <- spTransform(cam.regionS, CRS("+proj=utm +zone=55 +south +ellps=GRS80 +units=km")) 
 cam.region <- as.owin(cam.region)
 
 cams <- read.csv(paste0(inDir, "camlocs_MW.csv"), header=T) %>%
-  filter(substr(as.character(Station), 1, 1) == "C") %>%
+  filter(substr(as.character(Station), 1, 2) == site) %>%
   mutate(x = X, y = Y) %>%
-  select(Station, x, y)
-camlocs <- cams %>% dplyr::select(x,y)
-camlocs <- camlocs/1000 # km
+  select(Station, x, y) 
+
+camlocs <- cams %>% 
+  dplyr::select(x,y)
+
+camlocs <- camlocs/1000
 camlocs <- as.ppp(camlocs, W=cam.region)
 locs <- coords(camlocs)
 
-# Yk = 3D array of known ID's, filter out other sites
-IDarray <- readRDS(paste0(inDir, "SDH_count_FALLOW_MW"))
-CaCams <- grep("CA", colnames(IDarray))
-CaDeer <- grep("CA", row.names(IDarray))
-Yk <- IDarray[CaDeer, CaCams, ]
+# Yk = 3D array of known ID's
+IDarray <- readRDS(paste0(inDir, "SDH_count_RED_MW"))
+YYCams <- grep(site, colnames(IDarray))
+YYDeer <- grep(site, row.names(IDarray))
+Yk <- IDarray[YYDeer, YYCams, ]
 
 # Unmarked detection history matrix
-Yu <- read.csv(paste0(inDir, "Yu_FALLOW_MW.csv"), header=T) %>%
-  filter(substr(station, 1, 2) == "CA") 
+Yu <- read.csv(paste0(inDir, "Yu_RED_MW.csv"), header=T) %>%
+  filter(substr(station, 1, 2) == site) 
 
 # Change order of Yu rows to match order of cams and Yk
 cams_order <- data.frame(station = cams$Station,
@@ -39,27 +42,24 @@ Yu <- left_join(Yu, cams_order) %>%
   select(-station, -order)
 
 # Set model foundations
-M <- 200
-mmax <- 200
-delta <- c(0.1, 0.005, 2)
+M <-500
+mmax <- 100
+delta <- c(0.02, 0.004, 3) 
+sigma.prior <- list("uniform", 0, 5)
+lam0.prior <- list("uniform", 0, 5) 
 xlim <- range(locs[,1])
 ylim <- range(locs[,2])
-ni <- 100000#250000
+ni <- 150000
 nb <- 5000
 nc <- 6
-
-sigma.prior <- list("uniform", 0, 5)
-lam0.prior <- list("uniform", 0, 5)
-
-seed <-32
-set.seed(seed)
+set.seed(525)
 
 # Run model
 startDate <- Sys.Date()
-logfile <- paste0("mylog_CD_FALLOW_", startDate, ".txt")
-cl<- makePSOCKcluster(nc, outfile=logfile)
+logfile <- paste0("mylog_YY_RED_", startDate, ".txt")
+cl <- makePSOCKcluster(nc, outfile=logfile)
 clusterSetRNGStream(cl)
-clusterEvalQ(cl, {library(spatstat)}) 
+clusterEvalQ(cl, {library(spatstat)})
 clusterExport(cl, c("SMR_dens", "calc.dist", "prior.density", "sample.prior"))
 
 inits <- function(){list(S = cbind(runif(M+mmax, xlim[1], xlim[2]), 

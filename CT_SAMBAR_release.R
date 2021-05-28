@@ -78,7 +78,7 @@ set.seed(seed)
 
 # Run model
 startDate <- Sys.Date()
-logfile <- paste0("Logfiles/mylog_CT_SAMBAR_", startDate, ".txt")
+logfile <- paste0("mylog_CT_SAMBAR_", startDate, ".txt")
 cl <- makePSOCKcluster(nc, outfile=logfile)
 clusterSetRNGStream(cl)
 clusterEvalQ(cl, {library(spatstat)})
